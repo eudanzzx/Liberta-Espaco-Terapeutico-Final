@@ -21,10 +21,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
+import useUserDataService from "@/services/userDataService";
 
 const NovoAtendimento = () => {
   const navigate = useNavigate();
+  const { getAtendimentos, saveAtendimentos } = useUserDataService();
   const [dataNascimento, setDataNascimento] = useState("");
   const [signo, setSigno] = useState("");
   const [atencao, setAtencao] = useState(false);
@@ -93,8 +95,8 @@ const NovoAtendimento = () => {
   };
 
   const handleSaveAtendimento = () => {
-    // Get existing atendimentos from localStorage or initialize as empty array
-    const existingAtendimentos = JSON.parse(localStorage.getItem("atendimentos") || "[]");
+    // Get existing atendimentos from user data service
+    const existingAtendimentos = getAtendimentos();
     
     const novoAtendimento = {
       id: Date.now().toString(),
@@ -107,11 +109,14 @@ const NovoAtendimento = () => {
     // Add new atendimento to array
     existingAtendimentos.push(novoAtendimento);
     
-    // Save back to localStorage
-    localStorage.setItem("atendimentos", JSON.stringify(existingAtendimentos));
+    // Save back using user data service
+    saveAtendimentos(existingAtendimentos);
     
     // Show success message
-    toast.success("Atendimento salvo com sucesso!");
+    toast({
+      title: "Sucesso",
+      description: "Atendimento salvo com sucesso!",
+    });
     
     // Navigate back to home page
     navigate("/");
