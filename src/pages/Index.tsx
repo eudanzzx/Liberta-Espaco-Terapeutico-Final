@@ -224,11 +224,13 @@ const Index = () => {
             title="Atendimentos" 
             value={atendimentos.length.toString()} 
             icon={<Users className="h-8 w-8 text-[#0EA5E9]" />} 
+            onClick={() => {}} 
           />
           <DashboardCard 
             title="Esta Semana" 
             value={atendimentosSemana.toString()}
             icon={<CalendarDays className="h-8 w-8 text-[#0EA5E9]" />} 
+            onClick={() => {}}
           />
           <DashboardCard 
             title={`Recebido (${getPeriodoLabel()})`}
