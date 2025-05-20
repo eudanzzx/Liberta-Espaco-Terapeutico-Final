@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Users, Activity, FileText, Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, Users, Activity, FileText, Pencil, Trash2, BarChart3 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   AlertDialog,
@@ -173,6 +172,14 @@ const Index = () => {
               Tarot Frequencial
             </Button>
             <Button 
+              variant="outline" 
+              className="border-[#0EA5E9] text-[#0EA5E9] hover:bg-blue-50"
+              onClick={() => navigate('/relatorio-geral')}
+            >
+              <BarChart3 className="mr-1 h-4 w-4" />
+              Relatórios
+            </Button>
+            <Button 
               className="bg-[#0EA5E9] hover:bg-[#0284C7] transition-all duration-300"
               onClick={() => navigate('/novo-atendimento')}
             >
@@ -227,11 +234,14 @@ const Index = () => {
             title={`Recebido (${getPeriodoLabel()})`}
             value={`R$ ${totalRecebido.toFixed(2)}`} 
             icon={<Activity className="h-8 w-8 text-[#0EA5E9]" />} 
+            onClick={() => navigate('/relatorios-financeiros')}
           />
           <DashboardCard 
-            title="Análises Frequenciais" 
-            value="0" 
-            icon={<FileText className="h-8 w-8 text-[#0EA5E9]" />} 
+            title="Relatórios"
+            value="Ver" 
+            icon={<BarChart3 className="h-8 w-8 text-[#0EA5E9]" />}
+            onClick={() => navigate('/relatorio-geral')}
+            className="cursor-pointer hover:bg-blue-50 transition-colors"
           />
         </div>
 
@@ -256,7 +266,14 @@ const Index = () => {
                   <tbody>
                     {atendimentos.map((atendimento) => (
                       <tr key={atendimento.id} className="border-b border-gray-100 hover:bg-blue-50 transition-colors">
-                        <td className="py-3 px-4">{atendimento.nome}</td>
+                        <td className="py-3 px-4">
+                          <span 
+                            className="cursor-pointer hover:text-[#0EA5E9]"
+                            onClick={() => navigate(`/relatorio-individual/${atendimento.id}`)}
+                          >
+                            {atendimento.nome}
+                          </span>
+                        </td>
                         <td className="py-3 px-4">
                           {atendimento.dataAtendimento ? new Date(atendimento.dataAtendimento).toLocaleDateString('pt-BR') : ''}
                         </td>
@@ -338,8 +355,11 @@ const Index = () => {
   );
 };
 
-const DashboardCard = ({ title, value, icon }) => (
-  <Card className="border-blue-100 shadow-md hover:shadow-lg transition-all duration-300">
+const DashboardCard = ({ title, value, icon, onClick, className = "" }) => (
+  <Card 
+    className={`border-blue-100 shadow-md hover:shadow-lg transition-all duration-300 ${className}`}
+    onClick={onClick}
+  >
     <CardContent className="pt-6">
       <div className="flex justify-between items-center">
         <div>

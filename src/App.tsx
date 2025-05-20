@@ -3,9 +3,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
 import NovoAtendimento from "./pages/NovoAtendimento";
 import EditarAtendimento from "./pages/EditarAtendimento";
@@ -13,21 +13,11 @@ import AnaliseFrequencial from "./pages/AnaliseFrequencial";
 import ListagemTarot from "./pages/ListagemTarot";
 import EditarAnaliseFrequencial from "./pages/EditarAnaliseFrequencial";
 import NotFound from "./pages/NotFound";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import { ThemeProvider } from "./components/theme-provider";
+import RelatorioGeral from "./pages/RelatorioGeral";
+import RelatorioIndividual from "./pages/RelatorioIndividual";
+import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
 import Footer from "./components/Footer";
-
-// Protected Route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
+import { ThemeProvider } from "./components/theme-provider";
 
 function AppRoutes() {
   return (
@@ -35,39 +25,15 @@ function AppRoutes() {
       <div className="flex flex-col min-h-screen">
         <div className="flex-grow">
           <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/novo-atendimento" element={
-              <ProtectedRoute>
-                <NovoAtendimento />
-              </ProtectedRoute>
-            } />
-            <Route path="/editar-atendimento/:id" element={
-              <ProtectedRoute>
-                <EditarAtendimento />
-              </ProtectedRoute>
-            } />
-            <Route path="/analise-frequencial" element={
-              <ProtectedRoute>
-                <AnaliseFrequencial />
-              </ProtectedRoute>
-            } />
-            <Route path="/listagem-tarot" element={
-              <ProtectedRoute>
-                <ListagemTarot />
-              </ProtectedRoute>
-            } />
-            <Route path="/editar-analise-frequencial/:id" element={
-              <ProtectedRoute>
-                <EditarAnaliseFrequencial />
-              </ProtectedRoute>
-            } />
+            <Route path="/" element={<Index />} />
+            <Route path="/novo-atendimento" element={<NovoAtendimento />} />
+            <Route path="/editar-atendimento/:id" element={<EditarAtendimento />} />
+            <Route path="/analise-frequencial" element={<AnaliseFrequencial />} />
+            <Route path="/listagem-tarot" element={<ListagemTarot />} />
+            <Route path="/editar-analise-frequencial/:id" element={<EditarAnaliseFrequencial />} />
+            <Route path="/relatorio-geral" element={<RelatorioGeral />} />
+            <Route path="/relatorio-individual/:id" element={<RelatorioIndividual />} />
+            <Route path="/relatorios-financeiros" element={<RelatoriosFinanceiros />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
