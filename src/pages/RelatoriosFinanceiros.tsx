@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,22 +10,46 @@ import Logo from "@/components/Logo";
 import useUserDataService from "@/services/userDataService";
 import { useToast } from "@/hooks/use-toast";
 
+// Define interfaces for type safety
+interface Atendimento {
+  id: string;
+  dataAtendimento: string;
+  tipoServico: string;
+  valor: number;
+  // Other properties could be added here
+}
+
+interface DadosDiarios {
+  data: string;
+  valor: number;
+}
+
+interface DadosMensais {
+  mes: string;
+  valor: number;
+}
+
+interface DadosTiposServico {
+  name: string;
+  value: number;
+}
+
 const RelatoriosFinanceiros = () => {
   const navigate = useNavigate();
   const { getAtendimentos } = useUserDataService();
   const { toast } = useToast();
-  const [atendimentos, setAtendimentos] = useState([]);
+  const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [valorTotalDia, setValorTotalDia] = useState(0);
   const [valorTotalMes, setValorTotalMes] = useState(0);
   const [valorTotalAno, setValorTotalAno] = useState(0);
-  const [dadosGraficoDiario, setDadosGraficoDiario] = useState([]);
-  const [dadosGraficoMensal, setDadosGraficoMensal] = useState([]);
-  const [dadosGraficoTiposServico, setDadosGraficoTiposServico] = useState([]);
+  const [dadosGraficoDiario, setDadosGraficoDiario] = useState<DadosDiarios[]>([]);
+  const [dadosGraficoMensal, setDadosGraficoMensal] = useState<DadosMensais[]>([]);
+  const [dadosGraficoTiposServico, setDadosGraficoTiposServico] = useState<DadosTiposServico[]>([]);
   
   const COLORS = ['#0EA5E9', '#4f46e5', '#22c55e', '#f59e0b', '#ec4899', '#64748b', '#0f766e'];
 
   useEffect(() => {
-    const todosAtendimentos = getAtendimentos();
+    const todosAtendimentos = getAtendimentos() as Atendimento[];
     setAtendimentos(todosAtendimentos);
     
     // Datas de referência
@@ -56,15 +79,15 @@ const RelatoriosFinanceiros = () => {
     
     // Calcular totais
     const totalDia = atendimentosDia.reduce((soma, atendimento) => {
-      return soma + parseFloat(atendimento.valor || 0);
+      return soma + parseFloat(atendimento.valor.toString() || '0');
     }, 0);
     
     const totalMes = atendimentosMes.reduce((soma, atendimento) => {
-      return soma + parseFloat(atendimento.valor || 0);
+      return soma + parseFloat(atendimento.valor.toString() || '0');
     }, 0);
     
     const totalAno = atendimentosAno.reduce((soma, atendimento) => {
-      return soma + parseFloat(atendimento.valor || 0);
+      return soma + parseFloat(atendimento.valor.toString() || '0');
     }, 0);
     
     setValorTotalDia(totalDia);
@@ -78,7 +101,7 @@ const RelatoriosFinanceiros = () => {
     
   }, [getAtendimentos]);
   
-  const gerarDadosGraficoDiario = (todosAtendimentos) => {
+  const gerarDadosGraficoDiario = (todosAtendimentos: Atendimento[]) => {
     // Obter os últimos 30 dias
     const hoje = new Date();
     const inicioIntervalo = new Date();
@@ -96,7 +119,7 @@ const RelatoriosFinanceiros = () => {
       });
       
       const valorTotal = atendimentosDia.reduce((soma, atendimento) => {
-        return soma + parseFloat(atendimento.valor || 0);
+        return soma + parseFloat(atendimento.valor.toString() || '0');
       }, 0);
       
       return {
@@ -108,7 +131,7 @@ const RelatoriosFinanceiros = () => {
     setDadosGraficoDiario(dadosGrafico);
   };
   
-  const gerarDadosGraficoMensal = (todosAtendimentos) => {
+  const gerarDadosGraficoMensal = (todosAtendimentos: Atendimento[]) => {
     // Obter os últimos 12 meses
     const hoje = new Date();
     const inicioIntervalo = new Date();
@@ -127,7 +150,7 @@ const RelatoriosFinanceiros = () => {
       });
       
       const valorTotal = atendimentosMes.reduce((soma, atendimento) => {
-        return soma + parseFloat(atendimento.valor || 0);
+        return soma + parseFloat(atendimento.valor.toString() || '0');
       }, 0);
       
       return {
@@ -139,8 +162,8 @@ const RelatoriosFinanceiros = () => {
     setDadosGraficoMensal(dadosGrafico);
   };
   
-  const gerarDadosGraficoTiposServico = (todosAtendimentos) => {
-    const tiposServico = {};
+  const gerarDadosGraficoTiposServico = (todosAtendimentos: Atendimento[]) => {
+    const tiposServico: Record<string, { quantidade: number, valor: number }> = {};
     
     // Contar atendimentos por tipo de serviço
     todosAtendimentos.forEach(atendimento => {
@@ -153,7 +176,7 @@ const RelatoriosFinanceiros = () => {
       }
       
       tiposServico[tipo].quantidade += 1;
-      tiposServico[tipo].valor += parseFloat(atendimento.valor || 0);
+      tiposServico[tipo].valor += parseFloat(atendimento.valor.toString() || '0');
     });
     
     // Converter para o formato usado pelo gráfico
@@ -223,8 +246,12 @@ const RelatoriosFinanceiros = () => {
     }
   };
 
-  const formatarValorTooltip = (valor) => {
-    return `R$ ${Number(valor).toFixed(2)}`;
+  // Type-safe formatter for tooltip values
+  const formatarValorTooltip = (valor: number | string) => {
+    if (typeof valor === 'number') {
+      return `R$ ${valor.toFixed(2)}`;
+    }
+    return `R$ ${valor}`;
   };
 
   return (
@@ -333,7 +360,7 @@ const RelatoriosFinanceiros = () => {
                       tickFormatter={(value) => `R$${value}`}
                     />
                     <Tooltip 
-                      formatter={(value) => [`R$ ${value.toFixed(2)}`, 'Valor']}
+                      formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Valor']}
                       labelFormatter={(label) => `Data: ${label}`}
                     />
                     <Area 
@@ -370,7 +397,7 @@ const RelatoriosFinanceiros = () => {
                       tickFormatter={(value) => `R$${value}`}
                     />
                     <Tooltip 
-                      formatter={(value) => [`R$ ${value.toFixed(2)}`, 'Valor']}
+                      formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Valor']}
                       labelFormatter={(label) => `Mês: ${label}`}
                     />
                     <Bar dataKey="valor" fill="#0EA5E9" />
@@ -381,7 +408,7 @@ const RelatoriosFinanceiros = () => {
           </Card>
         </div>
         
-        {/* Gráfico de Pizza - Distribuição por tipo de serviço */}
+        {/* Gráfico de Pizza - Distribuição por tipo de servi��o */}
         <Card className="border-blue-100 shadow-md mb-8">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b border-blue-100">
             <CardTitle className="text-[#0EA5E9] flex items-center gap-2">
@@ -407,7 +434,7 @@ const RelatoriosFinanceiros = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `R$ ${Number(value).toFixed(2)}`} />
+                  <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
