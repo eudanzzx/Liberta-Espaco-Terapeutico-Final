@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +19,7 @@ import Logo from "@/components/Logo";
 import useUserDataService from "@/services/userDataService";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
 const RelatorioGeral = () => {
   const navigate = useNavigate();

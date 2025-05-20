@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -22,7 +21,7 @@ import Logo from "@/components/Logo";
 import UserMenu from "@/components/UserMenu";
 import { Separator } from '@/components/ui/separator';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
 const RelatorioIndividual = () => {
   const navigate = useNavigate();
