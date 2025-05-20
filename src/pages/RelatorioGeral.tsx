@@ -2,215 +2,195 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
 import { 
-  ChevronRight, 
-  FileText, 
-  Download, 
   Search, 
-  ArrowLeft, 
-  PieChart, 
-  DollarSign, 
-  FileDown, 
-  Pencil, 
-  Trash2
-} from "lucide-react";
+  Download, 
+  FileText, 
+  User, 
+  Calendar, 
+  DollarSign,
+  ArrowLeft,
+  Clock,
+  Tag,
+  CheckCircle,
+  FileDown,
+  Pencil
+} from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 import Logo from "@/components/Logo";
+import UserMenu from "@/components/UserMenu";
+import { format } from 'date-fns';
 import useUserDataService from "@/services/userDataService";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+// Add the type declaration for jsPDF with autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    getNumberOfPages: () => number;
+  }
+}
+
 const RelatorioGeral = () => {
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [atendimentos, setAtendimentos] = useState([]);
+  const [clientesUnicos, setClientesUnicos] = useState([]);
   const { getAtendimentos } = useUserDataService();
   const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [clientes, setClientes] = useState<Array<any>>([]);
-  const [filteredClientes, setFilteredClientes] = useState<Array<any>>([]);
 
-  // Carregar todos os dados de atendimentos
   useEffect(() => {
-    const atendimentos = getAtendimentos();
-    
-    // Agrupar atendimentos por cliente (nome)
-    const clientesMap = new Map();
-    
-    atendimentos.forEach((atendimento: any) => {
-      if (!clientesMap.has(atendimento.nome)) {
-        clientesMap.set(atendimento.nome, {
-          nome: atendimento.nome,
-          dataNascimento: atendimento.dataNascimento || '',
-          atendimentos: [],
-          valorTotal: 0,
-          tiposMaisFrequentes: {},
-          statusPagamento: {
-            pago: 0,
-            pendente: 0,
-            parcelado: 0
-          },
-          dataCadastro: atendimento.dataCadastro || atendimento.dataAtendimento || new Date().toISOString(),
-          ultimaAtualizacao: new Date().toISOString()
-        });
-      }
-      
-      const clienteData = clientesMap.get(atendimento.nome);
-      clienteData.atendimentos.push(atendimento);
-      
-      // Calcular valor total
-      clienteData.valorTotal += parseFloat(atendimento.valor || 0);
-      
-      // Contabilizar tipos de serviço
-      const tipoServico = atendimento.tipoServico;
-      clienteData.tiposMaisFrequentes[tipoServico] = (clienteData.tiposMaisFrequentes[tipoServico] || 0) + 1;
-      
-      // Contabilizar status de pagamento
-      const statusPagamento = atendimento.statusPagamento || "pendente";
-      clienteData.statusPagamento[statusPagamento] += 1;
-    });
-    
-    // Converter Map para Array
-    const clientesArray = Array.from(clientesMap.values()).map(cliente => {
-      // Encontrar o tipo mais frequente
-      let tipoMaisFrequente = "";
-      let maxCount = 0;
-      
-      Object.entries(cliente.tiposMaisFrequentes).forEach(([tipo, count]: [string, number]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          tipoMaisFrequente = tipo;
-        }
-      });
-      
-      // Calcular média de custo por atendimento
-      const mediaCusto = cliente.valorTotal / cliente.atendimentos.length;
-      
-      return {
-        ...cliente,
-        tipoMaisFrequente,
-        mediaCusto: isNaN(mediaCusto) ? 0 : mediaCusto,
-        totalAtendimentos: cliente.atendimentos.length
-      };
-    });
-    
-    // Ordenar por quantidade de atendimentos (decrescente)
-    clientesArray.sort((a, b) => b.totalAtendimentos - a.totalAtendimentos);
-    
-    setClientes(clientesArray);
-    setFilteredClientes(clientesArray);
-  }, [getAtendimentos]);
-  
-  // Filtrar clientes quando o termo de busca mudar
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredClientes(clientes);
-      return;
-    }
-    
-    const filtered = clientes.filter(cliente => 
-      cliente.nome.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    setFilteredClientes(filtered);
-  }, [searchTerm, clientes]);
+    loadAtendimentos();
+  }, []);
 
-  // Função para baixar relatório em PDF
-  const downloadRelatorioPdf = (cliente: any) => {
+  const loadAtendimentos = async () => {
+    const data = getAtendimentos();
+    setAtendimentos(data);
+  };
+
+  useEffect(() => {
+    const nomes = [...new Set(atendimentos.map(item => item.nome))];
+    setClientesUnicos(nomes);
+  }, [atendimentos]);
+
+  const filteredClientes = clientesUnicos.filter(cliente =>
+    cliente.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const downloadClienteReport = (cliente) => {
     try {
       const doc = new jsPDF();
+      const atendimentosCliente = atendimentos.filter(a => a.nome === cliente);
       
-      // Adicionar cabeçalho
+      // Add header
       doc.setFontSize(18);
-      doc.setTextColor(14, 165, 233); // Cor azul do Libertá (#0EA5E9)
-      doc.text('Libertá - Relatório do Cliente', 105, 15, { align: 'center' });
+      doc.setTextColor(14, 165, 233); // Cor azul do Libertá
+      doc.text(`Relatório Consolidado: ${cliente}`, 105, 15, { align: 'center' });
       
-      // Informações do cliente
+      // Client info
       doc.setFontSize(14);
       doc.setTextColor(0, 0, 0);
-      doc.text(`Cliente: ${cliente.nome}`, 14, 30);
       
-      if (cliente.dataNascimento) {
-        const dataNasc = new Date(cliente.dataNascimento).toLocaleDateString('pt-BR');
-        doc.text(`Data de Nascimento: ${dataNasc}`, 14, 38);
+      let yPos = 30;
+      
+      const firstAtendimento = atendimentosCliente[0];
+      if (firstAtendimento.dataNascimento) {
+        doc.text(`Data de Nascimento: ${new Date(firstAtendimento.dataNascimento).toLocaleDateString('pt-BR')}`, 14, yPos);
+        yPos += 8;
       }
       
-      doc.setFontSize(12);
-      doc.text(`Total de Atendimentos: ${cliente.totalAtendimentos}`, 14, 46);
-      doc.text(`Valor Total: R$ ${cliente.valorTotal.toFixed(2)}`, 14, 54);
-      doc.text(`Média por Atendimento: R$ ${cliente.mediaCusto.toFixed(2)}`, 14, 62);
-      doc.text(`Serviço Mais Frequente: ${cliente.tipoMaisFrequente.replace('-', ' ')}`, 14, 70);
+      if (firstAtendimento.signo) {
+        doc.text(`Signo: ${firstAtendimento.signo}`, 14, yPos);
+        yPos += 8;
+      }
       
-      // Status de pagamento
-      doc.text('Status de Pagamento:', 14, 78);
-      doc.text(`Pagos: ${cliente.statusPagamento.pago}`, 24, 86);
-      doc.text(`Pendentes: ${cliente.statusPagamento.pendente}`, 24, 94);
-      doc.text(`Parcelados: ${cliente.statusPagamento.parcelado}`, 24, 102);
+      doc.text(`Total de Atendimentos: ${atendimentosCliente.length}`, 14, yPos);
+      yPos += 8;
       
-      // Data de cadastro e última atualização
-      const dataCadastro = new Date(cliente.dataCadastro).toLocaleDateString('pt-BR');
-      const ultimaAtualizacao = new Date(cliente.ultimaAtualizacao).toLocaleDateString('pt-BR');
+      const valorTotal = atendimentosCliente.reduce((acc, curr) => acc + parseFloat(curr.valor || "0"), 0);
+      doc.text(`Valor Total: R$ ${valorTotal.toFixed(2)}`, 14, yPos);
+      yPos += 15;
       
-      doc.text(`Data de Cadastro: ${dataCadastro}`, 14, 110);
-      doc.text(`Última Atualização: ${ultimaAtualizacao}`, 14, 118);
+      // Table of appointments
+      const tableColumn = ["Data", "Tipo", "Valor", "Status", "Observações"];
+      const tableRows = atendimentosCliente.map(a => [
+        a.dataAtendimento ? new Date(a.dataAtendimento).toLocaleDateString('pt-BR') : '-',
+        a.tipoServico ? a.tipoServico.replace('-', ' ') : '-',
+        `R$ ${parseFloat(a.valor || "0").toFixed(2)}`,
+        a.statusPagamento || 'Pendente',
+        a.detalhes ? (a.detalhes.length > 30 ? a.detalhes.substring(0, 30) + '...' : a.detalhes) : '-'
+      ]);
       
-      // Detalhes dos atendimentos
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: yPos,
+        styles: { fontSize: 10, cellPadding: 3 },
+        headerStyles: { fillColor: [14, 165, 233], textColor: [255, 255, 255] }
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+      
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      // Additional details section
       doc.setFontSize(14);
       doc.setTextColor(14, 165, 233);
-      doc.text('Histórico de Atendimentos', 105, 134, { align: 'center' });
+      doc.text('Detalhes dos Atendimentos', 14, yPos);
+      yPos += 10;
       
-      // Tabela com os detalhes dos atendimentos
-      const tableData = cliente.atendimentos.map((atendimento: any) => {
-        const data = atendimento.dataAtendimento 
-          ? new Date(atendimento.dataAtendimento).toLocaleDateString('pt-BR') 
-          : 'N/A';
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      
+      atendimentosCliente.forEach((a, index) => {
+        // Check if we need a new page
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
         
-        return [
-          data,
-          atendimento.tipoServico.replace('-', ' '),
-          `R$ ${parseFloat(atendimento.valor || 0).toFixed(2)}`,
-          atendimento.statusPagamento || 'Pendente',
-          atendimento.atencaoFlag ? 'Sim' : 'Não',
-          atendimento.observacoes || ''
-        ];
+        doc.setFontSize(12);
+        doc.setFontStyle('bold');
+        doc.text(`Atendimento ${index + 1}: ${a.dataAtendimento ? new Date(a.dataAtendimento).toLocaleDateString('pt-BR') : '-'}`, 14, yPos);
+        yPos += 8;
+        
+        doc.setFontStyle('normal');
+        doc.setFontSize(10);
+        
+        if (a.detalhes) {
+          const detalhesLines = doc.splitTextToSize(`Detalhes: ${a.detalhes}`, 180);
+          doc.text(detalhesLines, 14, yPos);
+          yPos += detalhesLines.length * 5 + 5;
+        }
+        
+        if (a.tratamento) {
+          const tratamentoLines = doc.splitTextToSize(`Tratamento: ${a.tratamento}`, 180);
+          doc.text(tratamentoLines, 14, yPos);
+          yPos += tratamentoLines.length * 5 + 5;
+        }
+        
+        if (a.indicacao) {
+          const indicacaoLines = doc.splitTextToSize(`Indicação: ${a.indicacao}`, 180);
+          doc.text(indicacaoLines, 14, yPos);
+          yPos += indicacaoLines.length * 5 + 5;
+        }
+        
+        if (a.atencaoFlag) {
+          doc.setTextColor(220, 38, 38);
+          doc.text(`ATENÇÃO: ${a.atencaoNota || 'Este cliente requer atenção especial'}`, 14, yPos);
+          doc.setTextColor(0, 0, 0);
+          yPos += 8;
+        }
+        
+        yPos += 5;
       });
       
-      autoTable(doc, {
-        head: [['Data', 'Serviço', 'Valor', 'Status', 'Atenção', 'Observações']],
-        body: tableData,
-        startY: 140,
-        styles: {
-          fontSize: 10,
-          cellWidth: 'auto',
-        },
-        columnStyles: {
-          0: { cellWidth: 25 }, // Data
-          1: { cellWidth: 35 }, // Serviço
-          2: { cellWidth: 25 }, // Valor
-          3: { cellWidth: 25 }, // Status
-          4: { cellWidth: 20 }, // Atenção
-          5: { cellWidth: 'auto' }, // Observações
-        },
-        headStyles: {
-          fillColor: [14, 165, 233],
-        },
-      });
-      
-      // Rodapé
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
+      // Footer
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         doc.setFontSize(10);
         doc.setTextColor(150);
-        doc.text(`Libertá - Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} - Página ${i} de ${pageCount}`, 
-          105, doc.internal.pageSize.height - 10, { align: 'center' });
+        doc.text(
+          `Libertá - Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} - Página ${i} de ${totalPages}`,
+          105,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
       }
       
-      // Salvar o PDF
-      doc.save(`Relatorio_${cliente.nome.replace(/ /g, '_')}.pdf`);
+      // Save PDF
+      doc.save(`Relatorio_${cliente.replace(/ /g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
       
       toast({
-        title: "Download iniciado",
-        description: `O relatório de ${cliente.nome} está sendo baixado em PDF.`,
+        title: "Relatório gerado",
+        description: "O relatório consolidado foi baixado com sucesso.",
       });
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
@@ -222,61 +202,18 @@ const RelatorioGeral = () => {
     }
   };
 
-  // Função para baixar relatório em CSV (mantido para compatibilidade)
-  const downloadRelatorioCsv = (cliente: any) => {
-    try {
-      // Cabeçalho do CSV
-      let csvContent = "Nome do Cliente,Total de Atendimentos,Valor Total,Média por Atendimento,Serviço Mais Frequente,Pagos,Pendentes,Parcelados\n";
-      
-      // Adicionar dados do cliente
-      csvContent += `"${cliente.nome}",`;
-      csvContent += `${cliente.totalAtendimentos},`;
-      csvContent += `R$ ${cliente.valorTotal.toFixed(2)},`;
-      csvContent += `R$ ${cliente.mediaCusto.toFixed(2)},`;
-      csvContent += `"${cliente.tipoMaisFrequente.replace('-', ' ')}",`;
-      csvContent += `${cliente.statusPagamento.pago},`;
-      csvContent += `${cliente.statusPagamento.pendente},`;
-      csvContent += `${cliente.statusPagamento.parcelado}\n\n`;
-      
-      // Adicionar detalhes de cada atendimento
-      csvContent += "Data,Serviço,Valor,Status de Pagamento\n";
-      
-      cliente.atendimentos.forEach((atendimento: any) => {
-        const data = atendimento.dataAtendimento ? new Date(atendimento.dataAtendimento).toLocaleDateString('pt-BR') : 'Data não registrada';
-        csvContent += `${data},`;
-        csvContent += `"${atendimento.tipoServico.replace('-', ' ')}",`;
-        csvContent += `R$ ${parseFloat(atendimento.valor || 0).toFixed(2)},`;
-        csvContent += `${atendimento.statusPagamento || 'Pendente'}\n`;
-      });
-      
-      // Criar blob e link para download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `Relatorio_${cliente.nome.replace(/ /g, '_')}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({
-        title: "Download iniciado",
-        description: `O relatório de ${cliente.nome} está sendo baixado em CSV.`,
-      });
-    } catch (error) {
-      console.error("Erro ao gerar CSV:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao baixar relatório",
-        description: "Ocorreu um erro ao gerar o arquivo CSV.",
-      });
-    }
+  const getTotalValue = () => {
+    return atendimentos.reduce((acc, curr) => acc + parseFloat(curr.valor || "0"), 0).toFixed(2);
   };
 
-  // Função para editar um atendimento específico
-  const handleEditarAtendimento = (atendimentoId: string) => {
-    navigate(`/editar-atendimento/${atendimentoId}`);
+  const getStatusCounts = () => {
+    const pago = atendimentos.filter(a => a.statusPagamento === 'pago').length;
+    const pendente = atendimentos.filter(a => a.statusPagamento === 'pendente').length;
+    const parcelado = atendimentos.filter(a => a.statusPagamento === 'parcelado').length;
+    return { pago, pendente, parcelado };
   };
+
+  const { pago, pendente, parcelado } = getStatusCounts();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -286,234 +223,158 @@ const RelatorioGeral = () => {
           <div className="flex items-center gap-3">
             <Logo height={70} width={70} />
             <h1 className="text-2xl font-bold text-[#0EA5E9]">
-              Relatório Geral
+              Libertá - Relatórios Gerais
             </h1>
           </div>
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
-            className="text-[#0EA5E9] hover:bg-blue-50"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-          </Button>
+          <div className="flex gap-2 items-center">
+            <Button 
+              variant="outline" 
+              className="border-[#0EA5E9] text-[#0EA5E9] hover:bg-blue-50"
+              onClick={() => navigate('/')}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar ao Início
+            </Button>
+            <UserMenu />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto py-8 px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-700">Relatório por Cliente</h2>
-            <p className="text-sm text-gray-500">Visão geral de todos os clientes e seus atendimentos</p>
-          </div>
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-            <Input 
-              placeholder="Buscar cliente..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
+        <div className="mb-6 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-700">Lista de Clientes</h2>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Input 
+                type="text" 
+                placeholder="Buscar cliente..." 
+                className="pr-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
+            </div>
+            <Button 
+              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white"
+              onClick={() => {
+                const doc = new jsPDF();
+                
+                // Cabeçalho
+                doc.setFontSize(18);
+                doc.setTextColor(14, 165, 233);
+                doc.text('Relatório Geral Consolidado', 105, 15, { align: 'center' });
+                
+                // Resumo financeiro
+                doc.setFontSize(14);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Total de Clientes: ${clientesUnicos.length}`, 14, 30);
+                doc.text(`Total de Atendimentos: ${atendimentos.length}`, 14, 38);
+                doc.text(`Valor Total: R$ ${getTotalValue()}`, 14, 46);
+                
+                // Contagem de status
+                doc.text(`Pagos: ${pago}`, 14, 54);
+                doc.text(`Pendentes: ${pendente}`, 14, 62);
+                doc.text(`Parcelados: ${parcelado}`, 14, 70);
+                
+                // Posição inicial para a tabela
+                let startY = 80;
+                
+                // Configuração da tabela
+                const tableColumn = ["Cliente", "Atendimentos", "Valor Total"];
+                const tableRows = clientesUnicos.map(cliente => {
+                  const atendimentosCliente = atendimentos.filter(a => a.nome === cliente);
+                  const valorTotalCliente = atendimentosCliente.reduce((acc, curr) => acc + parseFloat(curr.valor || "0"), 0).toFixed(2);
+                  return [cliente, atendimentosCliente.length.toString(), `R$ ${valorTotalCliente}`];
+                });
+                
+                // Adicionar a tabela ao documento
+                doc.autoTable({
+                  head: [tableColumn],
+                  body: tableRows,
+                  startY: startY,
+                  styles: { fontSize: 10, cellPadding: 3 },
+                  headerStyles: { fillColor: [14, 165, 233], textColor: [255, 255, 255] }
+                });
+                
+                // Rodapé
+                doc.setFontSize(10);
+                doc.setTextColor(150);
+                doc.text(
+                  `Libertá - Relatório gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+                  105,
+                  doc.internal.pageSize.height - 10,
+                  { align: 'center' }
+                );
+                
+                // Salvar o PDF
+                doc.save(`Relatorio_Geral_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+                
+                toast({
+                  title: "Relatório gerado",
+                  description: "O relatório geral foi baixado com sucesso.",
+                });
+              }}
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Baixar Relatório Geral
+            </Button>
           </div>
         </div>
 
-        {filteredClientes.length > 0 ? (
-          <div className="grid gap-6">
-            {filteredClientes.map((cliente, index) => (
-              <Card key={index} className="border-blue-100 shadow-md overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b border-blue-100">
-                  <CardTitle className="flex justify-between">
-                    <div className="text-[#0EA5E9] capitalize">{cliente.nome}</div>
-                    <div className="text-sm font-normal text-gray-500 flex items-center">
-                      <FileText className="h-4 w-4 mr-1" /> {cliente.totalAtendimentos} atendimentos
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <InfoCard 
-                      icon={<DollarSign className="h-5 w-5 text-emerald-600" />}
-                      title="Valor Total" 
-                      value={`R$ ${cliente.valorTotal.toFixed(2)}`} 
-                    />
-                    <InfoCard 
-                      icon={<PieChart className="h-5 w-5 text-blue-600" />}
-                      title="Serviço Mais Frequente" 
-                      value={cliente.tipoMaisFrequente.replace('-', ' ')} 
-                      className="capitalize"
-                    />
-                    <InfoCard 
-                      icon={<DollarSign className="h-5 w-5 text-purple-600" />}
-                      title="Média por Atendimento" 
-                      value={`R$ ${cliente.mediaCusto.toFixed(2)}`} 
-                    />
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <h4 className="font-medium text-gray-700 mb-2">Status de Pagamentos</h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-green-50 p-2 rounded-md text-center">
-                        <div className="text-sm text-gray-500">Pagos</div>
-                        <div className="font-semibold text-green-600">{cliente.statusPagamento.pago}</div>
-                      </div>
-                      <div className="bg-yellow-50 p-2 rounded-md text-center">
-                        <div className="text-sm text-gray-500">Pendentes</div>
-                        <div className="font-semibold text-yellow-600">{cliente.statusPagamento.pendente}</div>
-                      </div>
-                      <div className="bg-red-50 p-2 rounded-md text-center">
-                        <div className="text-sm text-gray-500">Parcelados</div>
-                        <div className="font-semibold text-red-600">{cliente.statusPagamento.parcelado}</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Lista de atendimentos do cliente */}
-                  <div className="mt-6 pt-4 border-t border-gray-100">
-                    <h4 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-[#0EA5E9]" />
-                      Histórico de Atendimentos
-                    </h4>
-                    <div className="overflow-x-auto mt-2">
-                      <table className="w-full min-w-max">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="text-left py-2 px-2 text-xs text-gray-500">Data</th>
-                            <th className="text-left py-2 px-2 text-xs text-gray-500">Serviço</th>
-                            <th className="text-right py-2 px-2 text-xs text-gray-500">Valor</th>
-                            <th className="text-center py-2 px-2 text-xs text-gray-500">Status</th>
-                            <th className="text-center py-2 px-2 text-xs text-gray-500">Atenção</th>
-                            <th className="text-center py-2 px-2 text-xs text-gray-500">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {cliente.atendimentos.map((atendimento: any, i: number) => (
-                            <tr key={i} className="border-b border-gray-100 hover:bg-blue-50">
-                              <td className="py-2 px-2 text-sm">
-                                {atendimento.dataAtendimento 
-                                  ? new Date(atendimento.dataAtendimento).toLocaleDateString('pt-BR') 
-                                  : '-'}
-                              </td>
-                              <td className="py-2 px-2 text-sm capitalize">
-                                {atendimento.tipoServico.replace('-', ' ')}
-                              </td>
-                              <td className="py-2 px-2 text-sm text-right">
-                                R$ {parseFloat(atendimento.valor || 0).toFixed(2)}
-                              </td>
-                              <td className="py-2 px-2 text-xs text-center">
-                                <StatusBadge status={atendimento.statusPagamento || 'pendente'} />
-                              </td>
-                              <td className="py-2 px-2 text-center">
-                                {atendimento.atencaoFlag && (
-                                  <div className="inline-block h-3 w-3 rounded-full bg-red-500"></div>
-                                )}
-                              </td>
-                              <td className="py-2 px-2 text-center flex justify-center gap-1">
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0"
-                                  onClick={() => navigate(`/relatorio-individual/${atendimento.id}`)}
-                                >
-                                  <FileText className="h-3 w-3" />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 text-blue-600"
-                                  onClick={() => handleEditarAtendimento(atendimento.id)}
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-between">
-                    <Button 
-                      onClick={() => navigate(`/relatorio-individual/${cliente.atendimentos[0]?.id}`)}
-                      className="text-[#0EA5E9] bg-blue-50 hover:bg-blue-100"
-                    >
-                      Ver Detalhes <ChevronRight className="ml-1 h-4 w-4" />
-                    </Button>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => downloadRelatorioPdf(cliente)}
-                        className="bg-[#0EA5E9] hover:bg-[#0284C7]"
-                      >
-                        <FileDown className="mr-1 h-4 w-4" /> Baixar PDF
-                      </Button>
-                      <Button 
-                        onClick={() => downloadRelatorioCsv(cliente)}
-                        variant="outline"
-                        className="border-[#0EA5E9] text-[#0EA5E9]"
-                      >
-                        <Download className="mr-1 h-4 w-4" /> CSV
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card className="border-blue-100 shadow-md">
-            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-              <FileText className="h-16 w-16 text-gray-300 mb-4" />
-              <h3 className="text-xl font-medium text-gray-600">Nenhum cliente encontrado</h3>
-              <p className="text-gray-500 mt-2">
-                {searchTerm ? "Tente buscar com outros termos" : "Adicione atendimentos para gerar relatórios"}
-              </p>
-              <Button 
-                className="mt-6 bg-[#0EA5E9] hover:bg-[#0284C7]"
-                onClick={() => navigate('/novo-atendimento')}
-              >
-                Adicionar Atendimento
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <Card className="border-blue-100 shadow-md">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b border-blue-100">
+            <CardTitle className="text-[#0EA5E9]">Lista de Clientes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 px-4 text-[#0EA5E9]">Cliente</th>
+                    <th className="text-left py-2 px-4 text-[#0EA5E9]">Atendimentos</th>
+                    <th className="text-left py-2 px-4 text-[#0EA5E9]">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredClientes.map(cliente => {
+                    const atendimentosCliente = atendimentos.filter(a => a.nome === cliente);
+                    return (
+                      <tr key={cliente} className="hover:bg-blue-50">
+                        <td className="py-3 px-4">{cliente}</td>
+                        <td className="py-3 px-4">{atendimentosCliente.length}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-[#0EA5E9] text-[#0EA5E9] hover:bg-blue-50"
+                              onClick={() => downloadClienteReport(cliente)}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Relatório
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-[#0EA5E9] text-[#0EA5E9] hover:bg-blue-50"
+                              onClick={() => navigate(`/relatorio-individual/${atendimentosCliente[0]?.id}`)}
+                            >
+                              <User className="h-4 w-4 mr-2" />
+                              Detalhes
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
-  );
-};
-
-interface InfoCardProps {
-  icon: ReactNode;
-  title: string;
-  value: string;
-  className?: string;
-}
-
-const InfoCard = ({ icon, title, value, className = "" }: InfoCardProps) => (
-  <div className="bg-blue-50 bg-opacity-50 p-4 rounded-lg">
-    <div className="flex items-center gap-3">
-      <div className="rounded-full bg-white p-2 shadow-sm">{icon}</div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className={`font-semibold ${className}`}>{value}</p>
-      </div>
-    </div>
-  </div>
-);
-
-// Componente para exibir badges de status
-const StatusBadge = ({ status }: { status: string }) => {
-  let bgColor = "bg-yellow-100 text-yellow-800"; // Default para pendente
-  
-  if (status === "pago") {
-    bgColor = "bg-green-100 text-green-800";
-  } else if (status === "parcelado") {
-    bgColor = "bg-red-100 text-red-800";
-  }
-  
-  return (
-    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
   );
 };
 

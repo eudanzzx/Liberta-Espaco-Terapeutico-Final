@@ -20,12 +20,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import useUserDataService from "@/services/userDataService";
 
 const EditarAtendimento = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { getAtendimentos, saveAtendimentos } = useUserDataService();
   const [dataNascimento, setDataNascimento] = useState("");
   const [signo, setSigno] = useState("");
   const [atencao, setAtencao] = useState(false);
@@ -45,8 +47,8 @@ const EditarAtendimento = () => {
   });
 
   useEffect(() => {
-    // Carregar os dados do atendimento existente
-    const atendimentos = JSON.parse(localStorage.getItem("atendimentos") || "[]");
+    // Carregar os dados do atendimento existente usando o userDataService
+    const atendimentos = getAtendimentos();
     const atendimento = atendimentos.find(item => item.id === id);
     
     if (atendimento) {
@@ -58,7 +60,7 @@ const EditarAtendimento = () => {
       toast.error("Atendimento não encontrado");
       navigate("/");
     }
-  }, [id, navigate]);
+  }, [id, navigate, getAtendimentos]);
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
@@ -115,7 +117,7 @@ const EditarAtendimento = () => {
   };
 
   const handleSaveAtendimento = () => {
-    const atendimentos = JSON.parse(localStorage.getItem("atendimentos") || "[]");
+    const atendimentos = getAtendimentos();
     const index = atendimentos.findIndex(item => item.id === id);
     
     if (index !== -1) {
@@ -129,12 +131,26 @@ const EditarAtendimento = () => {
       };
       
       atendimentos[index] = updatedAtendimento;
-      localStorage.setItem("atendimentos", JSON.stringify(atendimentos));
+      saveAtendimentos(atendimentos);
       
       toast.success("Atendimento atualizado com sucesso!");
       navigate("/");
     } else {
       toast.error("Erro ao atualizar atendimento");
+    }
+  };
+
+  // Helper function to get status color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "pago":
+        return "bg-green-100 text-green-800 border-green-300";
+      case "pendente":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      case "parcelado":
+        return "bg-red-100 text-red-800 border-red-300";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-300";
     }
   };
 
@@ -230,15 +246,25 @@ const EditarAtendimento = () => {
                   value={formData.statusPagamento} 
                   onValueChange={(value) => handleSelectChange("statusPagamento", value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={formData.statusPagamento ? `border ${getStatusColor(formData.statusPagamento)}` : ""}>
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pago">Pago</SelectItem>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="parcelado">Parcelado</SelectItem>
+                    <SelectItem value="pago" className="bg-green-100 text-green-800">Pago</SelectItem>
+                    <SelectItem value="pendente" className="bg-yellow-100 text-yellow-800">Pendente</SelectItem>
+                    <SelectItem value="parcelado" className="bg-red-100 text-red-800">Parcelado</SelectItem>
                   </SelectContent>
                 </Select>
+                
+                {formData.statusPagamento && (
+                  <div className={`mt-2 px-3 py-1 rounded-md text-sm flex items-center ${getStatusColor(formData.statusPagamento)}`}>
+                    <span className={`h-2 w-2 rounded-full mr-2 ${
+                      formData.statusPagamento === 'pago' ? 'bg-green-500' : 
+                      formData.statusPagamento === 'pendente' ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}></span>
+                    <span className="capitalize">{formData.statusPagamento}</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -263,17 +289,20 @@ const EditarAtendimento = () => {
 
               <div className="space-y-2 flex flex-col">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="atencao" className="text-base">ATENÇÃO</Label>
+                  <Label htmlFor="atencao" className="text-base flex items-center">
+                    <AlertTriangle className={`mr-2 h-4 w-4 ${atencao ? "text-red-500" : "text-gray-400"}`} />
+                    ATENÇÃO
+                  </Label>
                   <Switch 
                     checked={atencao} 
                     onCheckedChange={setAtencao} 
-                    className="data-[state=checked]:bg-[#2196F3]"
+                    className="data-[state=checked]:bg-red-500"
                   />
                 </div>
                 <Input 
                   id="atencaoNota" 
                   placeholder="Pontos de atenção" 
-                  className={atencao ? "border-[#2196F3]" : ""}
+                  className={atencao ? "border-red-500 bg-red-50" : ""}
                   value={formData.atencaoNota}
                   onChange={handleInputChange}
                 />

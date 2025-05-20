@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import useUserDataService from "@/services/userDataService";
 import Logo from "@/components/Logo";
 import UserMenu from "@/components/UserMenu";
@@ -23,10 +23,16 @@ import { Separator } from '@/components/ui/separator';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+// Add the type declaration for jsPDF with autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
 const RelatorioIndividual = () => {
   const navigate = useNavigate();
   const { id } = useParams<{id: string}>();
-  const { toast } = useToast();
   const { getAtendimentos } = useUserDataService();
   const [atendimento, setAtendimento] = useState<any>(null);
   const [atendimentosCliente, setAtendimentosCliente] = useState<any[]>([]);
@@ -97,23 +103,60 @@ const RelatorioIndividual = () => {
       
       if (atendimento.atencaoFlag) {
         doc.setTextColor(220, 38, 38); // Vermelho para atenção
-        doc.text(`ATENÇÃO ESPECIAL: Este cliente requer atenção especial`, 14, 112);
+        doc.text(`ATENÇÃO ESPECIAL: ${atendimento.atencaoNota || 'Este cliente requer atenção especial'}`, 14, 112);
         doc.setTextColor(0, 0, 0); // Restaurar cor preta
       }
       
-      // Observações
-      doc.setFontSize(14);
-      doc.setTextColor(14, 165, 233);
-      doc.text('Observações', 14, 130);
+      // Detalhes
+      if (atendimento.detalhes) {
+        doc.setFontSize(14);
+        doc.setTextColor(14, 165, 233);
+        doc.text('Detalhes da Sessão', 14, 130);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        
+        // Quebrar texto de detalhes em linhas
+        const splitDetalhes = doc.splitTextToSize(atendimento.detalhes, 180);
+        doc.text(splitDetalhes, 14, 140);
+      }
       
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
+      // Tratamento
+      let yPos = 170;
+      if (atendimento.tratamento) {
+        doc.setFontSize(14);
+        doc.setTextColor(14, 165, 233);
+        doc.text('Tratamento Recomendado', 14, yPos);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        
+        // Quebrar texto de tratamento em linhas
+        const splitTratamento = doc.splitTextToSize(atendimento.tratamento, 180);
+        doc.text(splitTratamento, 14, yPos + 10);
+        
+        yPos += splitTratamento.length * 6 + 20;
+      }
       
-      const observacoes = atendimento.observacoes || "Nenhuma observação registrada.";
-      
-      // Quebrar texto de observações em linhas
-      const splitObservacoes = doc.splitTextToSize(observacoes, 180);
-      doc.text(splitObservacoes, 14, 140);
+      // Indicação
+      if (atendimento.indicacao) {
+        // Verificar se precisamos de uma nova página
+        if (yPos > 240) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.setTextColor(14, 165, 233);
+        doc.text('Indicações', 14, yPos);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        
+        // Quebrar texto de indicação em linhas
+        const splitIndicacao = doc.splitTextToSize(atendimento.indicacao, 180);
+        doc.text(splitIndicacao, 14, yPos + 10);
+      }
       
       // Identificação e rodapé
       doc.setFontSize(10);
@@ -124,15 +167,12 @@ const RelatorioIndividual = () => {
       // Salvar o PDF
       doc.save(`Atendimento_${atendimento.nome.replace(/ /g, '_')}_${formattedDate.replace(/\//g, '-')}.pdf`);
       
-      toast({
-        title: "Relatório gerado",
+      toast.success("Relatório gerado", {
         description: "O relatório desta consulta foi baixado com sucesso.",
       });
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao baixar relatório",
+      toast.error("Erro ao baixar relatório", {
         description: "Ocorreu um erro ao gerar o arquivo PDF.",
       });
     }
