@@ -4,10 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, FileText, Download, Search, ArrowLeft, PieChart, DollarSign } from "lucide-react";
+import { 
+  ChevronRight, 
+  FileText, 
+  Download, 
+  Search, 
+  ArrowLeft, 
+  PieChart, 
+  DollarSign, 
+  FileDown, 
+  Pencil, 
+  Trash2
+} from "lucide-react";
 import Logo from "@/components/Logo";
 import useUserDataService from "@/services/userDataService";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const RelatorioGeral = () => {
   const navigate = useNavigate();
@@ -28,6 +41,7 @@ const RelatorioGeral = () => {
       if (!clientesMap.has(atendimento.nome)) {
         clientesMap.set(atendimento.nome, {
           nome: atendimento.nome,
+          dataNascimento: atendimento.dataNascimento || '',
           atendimentos: [],
           valorTotal: 0,
           tiposMaisFrequentes: {},
@@ -35,7 +49,9 @@ const RelatorioGeral = () => {
             pago: 0,
             pendente: 0,
             parcelado: 0
-          }
+          },
+          dataCadastro: atendimento.dataCadastro || atendimento.dataAtendimento || new Date().toISOString(),
+          ultimaAtualizacao: new Date().toISOString()
         });
       }
       
@@ -99,7 +115,115 @@ const RelatorioGeral = () => {
     setFilteredClientes(filtered);
   }, [searchTerm, clientes]);
 
-  // Função para baixar relatório em CSV
+  // Função para baixar relatório em PDF
+  const downloadRelatorioPdf = (cliente: any) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Adicionar cabeçalho
+      doc.setFontSize(18);
+      doc.setTextColor(14, 165, 233); // Cor azul do Libertá (#0EA5E9)
+      doc.text('Libertá - Relatório do Cliente', 105, 15, { align: 'center' });
+      
+      // Informações do cliente
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Cliente: ${cliente.nome}`, 14, 30);
+      
+      if (cliente.dataNascimento) {
+        const dataNasc = new Date(cliente.dataNascimento).toLocaleDateString('pt-BR');
+        doc.text(`Data de Nascimento: ${dataNasc}`, 14, 38);
+      }
+      
+      doc.setFontSize(12);
+      doc.text(`Total de Atendimentos: ${cliente.totalAtendimentos}`, 14, 46);
+      doc.text(`Valor Total: R$ ${cliente.valorTotal.toFixed(2)}`, 14, 54);
+      doc.text(`Média por Atendimento: R$ ${cliente.mediaCusto.toFixed(2)}`, 14, 62);
+      doc.text(`Serviço Mais Frequente: ${cliente.tipoMaisFrequente.replace('-', ' ')}`, 14, 70);
+      
+      // Status de pagamento
+      doc.text('Status de Pagamento:', 14, 78);
+      doc.text(`Pagos: ${cliente.statusPagamento.pago}`, 24, 86);
+      doc.text(`Pendentes: ${cliente.statusPagamento.pendente}`, 24, 94);
+      doc.text(`Parcelados: ${cliente.statusPagamento.parcelado}`, 24, 102);
+      
+      // Data de cadastro e última atualização
+      const dataCadastro = new Date(cliente.dataCadastro).toLocaleDateString('pt-BR');
+      const ultimaAtualizacao = new Date(cliente.ultimaAtualizacao).toLocaleDateString('pt-BR');
+      
+      doc.text(`Data de Cadastro: ${dataCadastro}`, 14, 110);
+      doc.text(`Última Atualização: ${ultimaAtualizacao}`, 14, 118);
+      
+      // Detalhes dos atendimentos
+      doc.setFontSize(14);
+      doc.setTextColor(14, 165, 233);
+      doc.text('Histórico de Atendimentos', 105, 134, { align: 'center' });
+      
+      // Tabela com os detalhes dos atendimentos
+      const tableData = cliente.atendimentos.map((atendimento: any) => {
+        const data = atendimento.dataAtendimento 
+          ? new Date(atendimento.dataAtendimento).toLocaleDateString('pt-BR') 
+          : 'N/A';
+        
+        return [
+          data,
+          atendimento.tipoServico.replace('-', ' '),
+          `R$ ${parseFloat(atendimento.valor || 0).toFixed(2)}`,
+          atendimento.statusPagamento || 'Pendente',
+          atendimento.atencaoFlag ? 'Sim' : 'Não',
+          atendimento.observacoes || ''
+        ];
+      });
+      
+      autoTable(doc, {
+        head: [['Data', 'Serviço', 'Valor', 'Status', 'Atenção', 'Observações']],
+        body: tableData,
+        startY: 140,
+        styles: {
+          fontSize: 10,
+          cellWidth: 'auto',
+        },
+        columnStyles: {
+          0: { cellWidth: 25 }, // Data
+          1: { cellWidth: 35 }, // Serviço
+          2: { cellWidth: 25 }, // Valor
+          3: { cellWidth: 25 }, // Status
+          4: { cellWidth: 20 }, // Atenção
+          5: { cellWidth: 'auto' }, // Observações
+        },
+        headStyles: {
+          fillColor: [14, 165, 233],
+        },
+      });
+      
+      // Rodapé
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text(`Libertá - Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} - Página ${i} de ${pageCount}`, 
+          105, doc.internal.pageSize.height - 10, { align: 'center' });
+      }
+      
+      // Salvar o PDF
+      doc.save(`Relatorio_${cliente.nome.replace(/ /g, '_')}.pdf`);
+      
+      toast({
+        title: "Download iniciado",
+        description: `O relatório de ${cliente.nome} está sendo baixado em PDF.`,
+      });
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao baixar relatório",
+        description: "Ocorreu um erro ao gerar o arquivo PDF.",
+      });
+    }
+  };
+
+  // Função para baixar relatório em CSV (mantido para compatibilidade)
   const downloadRelatorioCsv = (cliente: any) => {
     try {
       // Cabeçalho do CSV
@@ -138,7 +262,7 @@ const RelatorioGeral = () => {
       
       toast({
         title: "Download iniciado",
-        description: `O relatório de ${cliente.nome} está sendo baixado.`,
+        description: `O relatório de ${cliente.nome} está sendo baixado em CSV.`,
       });
     } catch (error) {
       console.error("Erro ao gerar CSV:", error);
@@ -148,6 +272,11 @@ const RelatorioGeral = () => {
         description: "Ocorreu um erro ao gerar o arquivo CSV.",
       });
     }
+  };
+
+  // Função para editar um atendimento específico
+  const handleEditarAtendimento = (atendimentoId: string) => {
+    navigate(`/editar-atendimento/${atendimentoId}`);
   };
 
   return (
@@ -232,10 +361,75 @@ const RelatorioGeral = () => {
                         <div className="text-sm text-gray-500">Pendentes</div>
                         <div className="font-semibold text-yellow-600">{cliente.statusPagamento.pendente}</div>
                       </div>
-                      <div className="bg-blue-50 p-2 rounded-md text-center">
+                      <div className="bg-red-50 p-2 rounded-md text-center">
                         <div className="text-sm text-gray-500">Parcelados</div>
-                        <div className="font-semibold text-blue-600">{cliente.statusPagamento.parcelado}</div>
+                        <div className="font-semibold text-red-600">{cliente.statusPagamento.parcelado}</div>
                       </div>
+                    </div>
+                  </div>
+                  
+                  {/* Lista de atendimentos do cliente */}
+                  <div className="mt-6 pt-4 border-t border-gray-100">
+                    <h4 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-[#0EA5E9]" />
+                      Histórico de Atendimentos
+                    </h4>
+                    <div className="overflow-x-auto mt-2">
+                      <table className="w-full min-w-max">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 px-2 text-xs text-gray-500">Data</th>
+                            <th className="text-left py-2 px-2 text-xs text-gray-500">Serviço</th>
+                            <th className="text-right py-2 px-2 text-xs text-gray-500">Valor</th>
+                            <th className="text-center py-2 px-2 text-xs text-gray-500">Status</th>
+                            <th className="text-center py-2 px-2 text-xs text-gray-500">Atenção</th>
+                            <th className="text-center py-2 px-2 text-xs text-gray-500">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cliente.atendimentos.map((atendimento: any, i: number) => (
+                            <tr key={i} className="border-b border-gray-100 hover:bg-blue-50">
+                              <td className="py-2 px-2 text-sm">
+                                {atendimento.dataAtendimento 
+                                  ? new Date(atendimento.dataAtendimento).toLocaleDateString('pt-BR') 
+                                  : '-'}
+                              </td>
+                              <td className="py-2 px-2 text-sm capitalize">
+                                {atendimento.tipoServico.replace('-', ' ')}
+                              </td>
+                              <td className="py-2 px-2 text-sm text-right">
+                                R$ {parseFloat(atendimento.valor || 0).toFixed(2)}
+                              </td>
+                              <td className="py-2 px-2 text-xs text-center">
+                                <StatusBadge status={atendimento.statusPagamento || 'pendente'} />
+                              </td>
+                              <td className="py-2 px-2 text-center">
+                                {atendimento.atencaoFlag && (
+                                  <div className="inline-block h-3 w-3 rounded-full bg-red-500"></div>
+                                )}
+                              </td>
+                              <td className="py-2 px-2 text-center flex justify-center gap-1">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => navigate(`/relatorio-individual/${atendimento.id}`)}
+                                >
+                                  <FileText className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 text-blue-600"
+                                  onClick={() => handleEditarAtendimento(atendimento.id)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                   
@@ -246,12 +440,21 @@ const RelatorioGeral = () => {
                     >
                       Ver Detalhes <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
-                    <Button 
-                      onClick={() => downloadRelatorioCsv(cliente)}
-                      className="bg-[#0EA5E9] hover:bg-[#0284C7]"
-                    >
-                      <Download className="mr-1 h-4 w-4" /> Baixar Relatório
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => downloadRelatorioPdf(cliente)}
+                        className="bg-[#0EA5E9] hover:bg-[#0284C7]"
+                      >
+                        <FileDown className="mr-1 h-4 w-4" /> Baixar PDF
+                      </Button>
+                      <Button 
+                        onClick={() => downloadRelatorioCsv(cliente)}
+                        variant="outline"
+                        className="border-[#0EA5E9] text-[#0EA5E9]"
+                      >
+                        <Download className="mr-1 h-4 w-4" /> CSV
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -297,5 +500,22 @@ const InfoCard = ({ icon, title, value, className = "" }: InfoCardProps) => (
     </div>
   </div>
 );
+
+// Componente para exibir badges de status
+const StatusBadge = ({ status }: { status: string }) => {
+  let bgColor = "bg-yellow-100 text-yellow-800"; // Default para pendente
+  
+  if (status === "pago") {
+    bgColor = "bg-green-100 text-green-800";
+  } else if (status === "parcelado") {
+    bgColor = "bg-red-100 text-red-800";
+  }
+  
+  return (
+    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+};
 
 export default RelatorioGeral;
