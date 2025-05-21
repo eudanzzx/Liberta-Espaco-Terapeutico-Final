@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Users, Activity, FileText, Pencil, Trash2, BarChart3 } from "lucide-react";
+import { CalendarDays, Users, Activity, FileText, Pencil, Trash2, BarChart3, FileDown } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   AlertDialog,
@@ -20,6 +20,16 @@ import { useToast } from "@/hooks/use-toast";
 import Logo from "@/components/Logo";
 import UserMenu from "@/components/UserMenu";
 import useUserDataService from "@/services/userDataService";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Add the type declaration for jsPDF with autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    getNumberOfPages: () => number;
+  }
+}
 
 const Index = () => {
   const navigate = useNavigate();
@@ -101,6 +111,109 @@ const Index = () => {
     });
     
     setAtendimentosSemana(atendimentosDestaSemana.length);
+  };
+
+  const downloadClientReport = (atendimento) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Add header
+      doc.setFontSize(18);
+      doc.setTextColor(14, 165, 233); // Cor azul do Libertá
+      doc.text(`Relatório de Atendimento: ${atendimento.nome}`, 105, 15, { align: 'center' });
+      
+      // Client info
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      
+      let yPos = 30;
+      
+      if (atendimento.dataNascimento) {
+        doc.text(`Data de Nascimento: ${new Date(atendimento.dataNascimento).toLocaleDateString('pt-BR')}`, 14, yPos);
+        yPos += 8;
+      }
+      
+      if (atendimento.signo) {
+        doc.text(`Signo: ${atendimento.signo}`, 14, yPos);
+        yPos += 8;
+      }
+      
+      doc.text(`Tipo de Serviço: ${atendimento.tipoServico?.replace('-', ' ') || 'Não especificado'}`, 14, yPos);
+      yPos += 8;
+      
+      doc.text(`Data do Atendimento: ${atendimento.dataAtendimento ? new Date(atendimento.dataAtendimento).toLocaleDateString('pt-BR') : 'Não especificado'}`, 14, yPos);
+      yPos += 8;
+      
+      doc.text(`Valor: R$ ${parseFloat(atendimento.valor || "0").toFixed(2)}`, 14, yPos);
+      yPos += 8;
+      
+      doc.text(`Status de Pagamento: ${atendimento.statusPagamento || 'Não especificado'}`, 14, yPos);
+      yPos += 15;
+      
+      // Detalhes do atendimento
+      doc.setFontSize(14);
+      doc.setTextColor(14, 165, 233);
+      doc.text('Detalhes do Atendimento', 14, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      
+      if (atendimento.destino) {
+        const destinoLines = doc.splitTextToSize(`Destino: ${atendimento.destino}`, 180);
+        doc.text(destinoLines, 14, yPos);
+        yPos += destinoLines.length * 5 + 5;
+      }
+      
+      if (atendimento.ano) {
+        const anoLines = doc.splitTextToSize(`Ano: ${atendimento.ano}`, 180);
+        doc.text(anoLines, 14, yPos);
+        yPos += anoLines.length * 5 + 5;
+      }
+      
+      if (atendimento.detalhes) {
+        const detalhesLines = doc.splitTextToSize(`Detalhes da Sessão: ${atendimento.detalhes}`, 180);
+        doc.text(detalhesLines, 14, yPos);
+        yPos += detalhesLines.length * 5 + 5;
+      }
+      
+      if (atendimento.tratamento) {
+        const tratamentoLines = doc.splitTextToSize(`Tratamento: ${atendimento.tratamento}`, 180);
+        doc.text(tratamentoLines, 14, yPos);
+        yPos += tratamentoLines.length * 5 + 5;
+      }
+      
+      if (atendimento.indicacao) {
+        const indicacaoLines = doc.splitTextToSize(`Indicação: ${atendimento.indicacao}`, 180);
+        doc.text(indicacaoLines, 14, yPos);
+        yPos += indicacaoLines.length * 5 + 5;
+      }
+      
+      if (atendimento.atencaoFlag) {
+        doc.setTextColor(220, 38, 38);
+        doc.text(`ATENÇÃO: ${atendimento.atencaoNota || 'Este cliente requer atenção especial'}`, 14, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 8;
+      }
+      
+      // Footer
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text(
+        `Libertá - Relatório gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+        105,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+      
+      // Save PDF
+      doc.save(`Relatório_${atendimento.nome.replace(/ /g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+      
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar relatório");
+    }
   };
 
   const getPeriodoLabel = () => {
@@ -262,6 +375,78 @@ const Index = () => {
           />
         </div>
 
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-700">Atendimentos Recentes</h3>
+          <Button 
+            className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white"
+            onClick={() => {
+              if (atendimentos.length === 0) {
+                toast.error("Não há atendimentos para gerar relatório");
+                return;
+              }
+              
+              try {
+                const doc = new jsPDF();
+                
+                // Cabeçalho
+                doc.setFontSize(18);
+                doc.setTextColor(14, 165, 233);
+                doc.text('Relatório de Atendimentos', 105, 15, { align: 'center' });
+                
+                // Resumo
+                doc.setFontSize(14);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Total de Atendimentos: ${atendimentos.length}`, 14, 30);
+                doc.text(`Valor Total: R$ ${totalRecebido.toFixed(2)} (${getPeriodoLabel()})`, 14, 38);
+                doc.text(`Atendimentos Esta Semana: ${atendimentosSemana}`, 14, 46);
+                
+                // Posição inicial para a tabela
+                let startY = 60;
+                
+                // Configuração da tabela
+                const tableColumn = ["Nome", "Data", "Serviço", "Valor", "Status"];
+                const tableRows = atendimentos.map(a => [
+                  a.nome,
+                  a.dataAtendimento ? new Date(a.dataAtendimento).toLocaleDateString('pt-BR') : '-',
+                  a.tipoServico ? a.tipoServico.replace('-', ' ') : '-',
+                  `R$ ${parseFloat(a.valor || "0").toFixed(2)}`,
+                  a.statusPagamento || 'Pendente'
+                ]);
+                
+                // Adicionar a tabela ao documento
+                doc.autoTable({
+                  head: [tableColumn],
+                  body: tableRows,
+                  startY: startY,
+                  styles: { fontSize: 10, cellPadding: 3 },
+                  headerStyles: { fillColor: [14, 165, 233], textColor: [255, 255, 255] }
+                });
+                
+                // Rodapé
+                doc.setFontSize(10);
+                doc.setTextColor(150);
+                doc.text(
+                  `Libertá - Relatório gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+                  105,
+                  doc.internal.pageSize.height - 10,
+                  { align: 'center' }
+                );
+                
+                // Salvar o PDF
+                doc.save(`Relatorio_Atendimentos_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+                
+                toast.success("Relatório gerado com sucesso!");
+              } catch (error) {
+                console.error("Erro ao gerar PDF:", error);
+                toast.error("Erro ao gerar relatório");
+              }
+            }}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Baixar Relatório
+          </Button>
+        </div>
+
         <Card className="border-blue-100 shadow-md">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b border-blue-100">
             <CardTitle className="text-[#0EA5E9]">Atendimentos Recentes</CardTitle>
@@ -319,6 +504,14 @@ const Index = () => {
                             onClick={() => handleEditAtendimento(atendimento.id)}
                           >
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+                            onClick={() => downloadClientReport(atendimento)}
+                          >
+                            <FileText className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -397,6 +590,26 @@ const DashboardCard = ({ title, value, icon, onClick, className = "" }) => (
       </div>
     </CardContent>
   </Card>
+);
+
+const Users = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
 );
 
 export default Index;

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -245,6 +245,50 @@ const RelatorioGeral = () => {
 
       {/* Main Content */}
       <main className="container mx-auto py-8 px-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="border-blue-200 bg-gradient-to-br from-white to-blue-50 shadow-md hover:shadow-lg transition-all">
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total Atendimentos</p>
+                  <p className="text-2xl font-bold">{atendimentos.length}</p>
+                </div>
+                <div className="rounded-full p-3 bg-blue-100">
+                  <User className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-green-200 bg-gradient-to-br from-white to-green-50 shadow-md hover:shadow-lg transition-all">
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total Recebido</p>
+                  <p className="text-2xl font-bold">R$ {getTotalValue()}</p>
+                </div>
+                <div className="rounded-full p-3 bg-green-100">
+                  <DollarSign className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-purple-200 bg-gradient-to-br from-white to-purple-50 shadow-md hover:shadow-lg transition-all">
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Clientes</p>
+                  <p className="text-2xl font-bold">{clientesUnicos.length}</p>
+                </div>
+                <div className="rounded-full p-3 bg-purple-100">
+                  <Users className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="mb-6 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-700">Lista de Clientes</h2>
           <div className="flex items-center gap-4">
@@ -284,11 +328,22 @@ const RelatorioGeral = () => {
                 let startY = 80;
                 
                 // Configuração da tabela
-                const tableColumn = ["Cliente", "Atendimentos", "Valor Total"];
+                const tableColumn = ["Cliente", "Atendimentos", "Valor Total", "Status"];
                 const tableRows = clientesUnicos.map(cliente => {
                   const atendimentosCliente = atendimentos.filter(a => a.nome === cliente);
                   const valorTotalCliente = atendimentosCliente.reduce((acc, curr) => acc + parseFloat(curr.valor || "0"), 0).toFixed(2);
-                  return [cliente, atendimentosCliente.length.toString(), `R$ ${valorTotalCliente}`];
+                  
+                  // Determine predominant status
+                  const pagos = atendimentosCliente.filter(a => a.statusPagamento === 'pago').length;
+                  const pendentes = atendimentosCliente.filter(a => a.statusPagamento === 'pendente').length;
+                  const parcelados = atendimentosCliente.filter(a => a.statusPagamento === 'parcelado').length;
+                  
+                  let status = "Misto";
+                  if (pagos > pendentes && pagos > parcelados) status = "Pago";
+                  else if (pendentes > pagos && pendentes > parcelados) status = "Pendente";
+                  else if (parcelados > pagos && parcelados > pendentes) status = "Parcelado";
+                  
+                  return [cliente, atendimentosCliente.length.toString(), `R$ ${valorTotalCliente}`, status];
                 });
                 
                 // Adicionar a tabela ao documento
@@ -336,16 +391,20 @@ const RelatorioGeral = () => {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2 px-4 text-[#0EA5E9]">Cliente</th>
                     <th className="text-left py-2 px-4 text-[#0EA5E9]">Atendimentos</th>
+                    <th className="text-left py-2 px-4 text-[#0EA5E9]">Total</th>
                     <th className="text-left py-2 px-4 text-[#0EA5E9]">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredClientes.map(cliente => {
                     const atendimentosCliente = atendimentos.filter(a => a.nome === cliente);
+                    const valorTotal = atendimentosCliente.reduce((acc, curr) => acc + parseFloat(curr.valor || "0"), 0).toFixed(2);
+                    
                     return (
                       <tr key={cliente} className="hover:bg-blue-50">
                         <td className="py-3 px-4">{cliente}</td>
                         <td className="py-3 px-4">{atendimentosCliente.length}</td>
+                        <td className="py-3 px-4">R$ {valorTotal}</td>
                         <td className="py-3 px-4">
                           <div className="flex gap-2">
                             <Button
@@ -380,5 +439,26 @@ const RelatorioGeral = () => {
     </div>
   );
 };
+
+// Solution for the Users icon missing
+const Users = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
 
 export default RelatorioGeral;

@@ -20,9 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 import useUserDataService from "@/services/userDataService";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Add the type declaration for jsPDF with autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    getNumberOfPages: () => number;
+  }
+}
 
 const EditarAtendimento = () => {
   const navigate = useNavigate();
@@ -106,6 +116,10 @@ const EditarAtendimento = () => {
       else signoCalculado = "Peixes";
       
       setSigno(signoCalculado);
+      setFormData(prev => ({
+        ...prev,
+        signo: signoCalculado
+      }));
     } else {
       setSigno("");
     }
@@ -149,20 +163,132 @@ const EditarAtendimento = () => {
     }
   };
 
+  const downloadReport = () => {
+    try {
+      const doc = new jsPDF();
+      
+      // Add header
+      doc.setFontSize(18);
+      doc.setTextColor(14, 165, 233); // Cor azul do Libertá
+      doc.text(`Relatório de Atendimento: ${formData.nome}`, 105, 15, { align: 'center' });
+      
+      // Client info
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      
+      let yPos = 30;
+      
+      if (formData.dataNascimento) {
+        doc.text(`Data de Nascimento: ${new Date(formData.dataNascimento).toLocaleDateString('pt-BR')}`, 14, yPos);
+        yPos += 8;
+      }
+      
+      if (signo) {
+        doc.text(`Signo: ${signo}`, 14, yPos);
+        yPos += 8;
+      }
+      
+      doc.text(`Tipo de Serviço: ${formData.tipoServico?.replace('-', ' ') || 'Não especificado'}`, 14, yPos);
+      yPos += 8;
+      
+      doc.text(`Data do Atendimento: ${formData.dataAtendimento ? new Date(formData.dataAtendimento).toLocaleDateString('pt-BR') : 'Não especificado'}`, 14, yPos);
+      yPos += 8;
+      
+      doc.text(`Valor: R$ ${parseFloat(formData.valor || "0").toFixed(2)}`, 14, yPos);
+      yPos += 8;
+      
+      doc.text(`Status de Pagamento: ${formData.statusPagamento || 'Não especificado'}`, 14, yPos);
+      yPos += 15;
+      
+      // Detalhes do atendimento
+      doc.setFontSize(14);
+      doc.setTextColor(14, 165, 233);
+      doc.text('Detalhes do Atendimento', 14, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      
+      if (formData.destino) {
+        const destinoLines = doc.splitTextToSize(`Destino: ${formData.destino}`, 180);
+        doc.text(destinoLines, 14, yPos);
+        yPos += destinoLines.length * 5 + 5;
+      }
+      
+      if (formData.ano) {
+        const anoLines = doc.splitTextToSize(`Ano: ${formData.ano}`, 180);
+        doc.text(anoLines, 14, yPos);
+        yPos += anoLines.length * 5 + 5;
+      }
+      
+      if (formData.detalhes) {
+        const detalhesLines = doc.splitTextToSize(`Detalhes da Sessão: ${formData.detalhes}`, 180);
+        doc.text(detalhesLines, 14, yPos);
+        yPos += detalhesLines.length * 5 + 5;
+      }
+      
+      if (formData.tratamento) {
+        const tratamentoLines = doc.splitTextToSize(`Tratamento: ${formData.tratamento}`, 180);
+        doc.text(tratamentoLines, 14, yPos);
+        yPos += tratamentoLines.length * 5 + 5;
+      }
+      
+      if (formData.indicacao) {
+        const indicacaoLines = doc.splitTextToSize(`Indicação: ${formData.indicacao}`, 180);
+        doc.text(indicacaoLines, 14, yPos);
+        yPos += indicacaoLines.length * 5 + 5;
+      }
+      
+      if (atencao) {
+        doc.setTextColor(220, 38, 38);
+        doc.text(`ATENÇÃO: ${formData.atencaoNota || 'Este cliente requer atenção especial'}`, 14, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 8;
+      }
+      
+      // Footer
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text(
+        `Libertá - Relatório gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+        105,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+      
+      // Save PDF
+      doc.save(`Relatorio_${formData.nome.replace(/ /g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+      
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar relatório");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4">
       <div className="container mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center">
-          <Button 
-            variant="ghost" 
-            className="mr-2" 
-            onClick={() => navigate(-1)}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              className="mr-2" 
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold text-[#2196F3]">
+              Editar Atendimento
+            </h1>
+          </div>
+          <Button
+            onClick={downloadReport}
+            className="bg-[#9b87f5] hover:bg-[#8A71E5] text-white"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <FileText className="h-4 w-4 mr-2" />
+            Baixar Relatório
           </Button>
-          <h1 className="text-2xl font-bold text-[#2196F3]">
-            Editar Atendimento
-          </h1>
         </div>
 
         <Card className="border-[#C5A3E0] shadow-sm">
