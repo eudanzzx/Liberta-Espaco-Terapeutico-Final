@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -136,11 +137,13 @@ const RelatorioGeral = () => {
         }
         
         doc.setFontSize(12);
-        doc.setFontStyle('bold');
+        // Use font-weight instead of setFontStyle
+        doc.setFont(undefined, 'bold');
         doc.text(`Atendimento ${index + 1}: ${a.dataAtendimento ? new Date(a.dataAtendimento).toLocaleDateString('pt-BR') : '-'}`, 14, yPos);
         yPos += 8;
         
-        doc.setFontStyle('normal');
+        // Reset to normal font
+        doc.setFont(undefined, 'normal');
         doc.setFontSize(10);
         
         if (a.detalhes) {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -152,6 +153,20 @@ const Index = () => {
     }
   };
 
+  // Helper function to get status color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "pago":
+        return "bg-green-500 text-white";
+      case "pendente":
+        return "bg-yellow-500 text-white";
+      case "parcelado":
+        return "bg-red-500 text-white";
+      default:
+        return "bg-gray-200 text-gray-800";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}
@@ -261,6 +276,7 @@ const Index = () => {
                       <th className="text-left py-3 px-4 text-[#0EA5E9]">Data</th>
                       <th className="text-left py-3 px-4 text-[#0EA5E9]">Serviço</th>
                       <th className="text-right py-3 px-4 text-[#0EA5E9]">Valor</th>
+                      <th className="text-center py-3 px-4 text-[#0EA5E9]">Status</th>
                       <th className="text-center py-3 px-4 text-[#0EA5E9]">Atenção</th>
                       <th className="text-center py-3 px-4 text-[#0EA5E9]">Ações</th>
                     </tr>
@@ -282,8 +298,15 @@ const Index = () => {
                         <td className="py-3 px-4 capitalize">{atendimento.tipoServico.replace('-', ' ')}</td>
                         <td className="py-3 px-4 text-right">R$ {parseFloat(atendimento.valor || 0).toFixed(2)}</td>
                         <td className="py-3 px-4 text-center">
+                          {atendimento.statusPagamento && (
+                            <div className={`inline-flex items-center ${getStatusColor(atendimento.statusPagamento)} text-xs font-medium px-2.5 py-1 rounded-full`}>
+                              {atendimento.statusPagamento.toUpperCase()}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
                           {atendimento.atencaoFlag ? (
-                            <div className="inline-flex items-center bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                            <div className="inline-flex items-center bg-red-500 text-white text-xs font-medium px-2.5 py-1 rounded-full">
                               ATENÇÃO
                             </div>
                           ) : null}

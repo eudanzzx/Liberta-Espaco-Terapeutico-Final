@@ -58,11 +58,6 @@ const NovoAtendimento = () => {
       ...formData,
       [field]: value,
     });
-    
-    // Se o usuário selecionar "Tarot Frequencial", redirecionar para a página específica
-    if (field === "tipoServico" && value === "tarot-frequencial") {
-      navigate("/analise-frequencial");
-    }
   };
 
   const handleDataNascimentoChange = (e) => {
@@ -128,13 +123,13 @@ const NovoAtendimento = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case "pago":
-        return "bg-green-100 text-green-800 border-green-300";
+        return "bg-green-500 text-white border-green-600";
       case "pendente":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300";
+        return "bg-yellow-500 text-white border-yellow-600";
       case "parcelado":
-        return "bg-red-100 text-red-800 border-red-300";
+        return "bg-red-500 text-white border-red-600";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-gray-200 text-gray-800 border-gray-300";
     }
   };
 
@@ -195,7 +190,6 @@ const NovoAtendimento = () => {
                     <SelectItem value="tarot">Tarot</SelectItem>
                     <SelectItem value="terapia">Terapia</SelectItem>
                     <SelectItem value="mesa-radionica">Mesa Radiônica</SelectItem>
-                    <SelectItem value="tarot-frequencial">Tarot Frequencial</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -224,21 +218,21 @@ const NovoAtendimento = () => {
               <div className="space-y-2">
                 <Label htmlFor="statusPagamento">Status de Pagamento</Label>
                 <Select onValueChange={(value) => handleSelectChange("statusPagamento", value)}>
-                  <SelectTrigger className={formData.statusPagamento ? `border ${getStatusColor(formData.statusPagamento)}` : ""}>
+                  <SelectTrigger className={formData.statusPagamento ? `border-2 ${getStatusColor(formData.statusPagamento)}` : ""}>
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pago" className="bg-green-100 text-green-800">Pago</SelectItem>
-                    <SelectItem value="pendente" className="bg-yellow-100 text-yellow-800">Pendente</SelectItem>
-                    <SelectItem value="parcelado" className="bg-red-100 text-red-800">Parcelado</SelectItem>
+                    <SelectItem value="pago" className="bg-green-100 text-green-800 hover:bg-green-200">Pago</SelectItem>
+                    <SelectItem value="pendente" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Pendente</SelectItem>
+                    <SelectItem value="parcelado" className="bg-red-100 text-red-800 hover:bg-red-200">Parcelado</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 {formData.statusPagamento && (
                   <div className={`mt-2 px-3 py-1 rounded-md text-sm flex items-center ${getStatusColor(formData.statusPagamento)}`}>
-                    <span className={`h-2 w-2 rounded-full mr-2 ${
-                      formData.statusPagamento === 'pago' ? 'bg-green-500' : 
-                      formData.statusPagamento === 'pendente' ? 'bg-yellow-500' : 'bg-red-500'
+                    <span className={`h-3 w-3 rounded-full mr-2 ${
+                      formData.statusPagamento === 'pago' ? 'bg-white' : 
+                      formData.statusPagamento === 'pendente' ? 'bg-white' : 'bg-white'
                     }`}></span>
                     <span className="capitalize">{formData.statusPagamento}</span>
                   </div>
