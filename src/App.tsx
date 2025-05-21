@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import RelatorioGeral from "./pages/RelatorioGeral";
 import RelatorioIndividual from "./pages/RelatorioIndividual";
 import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
+import RelatoriosFrequencial from "./pages/RelatoriosFrequencial";
 import Footer from "./components/Footer";
 import { ThemeProvider } from "./components/theme-provider";
 
@@ -34,6 +35,7 @@ function AppRoutes() {
             <Route path="/relatorio-geral" element={<RelatorioGeral />} />
             <Route path="/relatorio-individual/:id" element={<RelatorioIndividual />} />
             <Route path="/relatorios-financeiros" element={<RelatoriosFinanceiros />} />
+            <Route path="/relatorios-frequencial" element={<RelatoriosFrequencial />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

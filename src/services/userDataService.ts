@@ -56,12 +56,24 @@ const useUserDataService = () => {
     const allUserData = JSON.parse(localStorage.getItem('userData') || '{}');
     return (allUserData[userId]?.tarotAnalyses || []);
   };
+
+  // Get all analyses from localStorage (for reports)
+  const getAllTarotAnalyses = () => {
+    return JSON.parse(localStorage.getItem('analises') || '[]');
+  };
+  
+  // Save all analyses to localStorage (for reports)
+  const saveAllTarotAnalyses = (analyses: any[]) => {
+    localStorage.setItem('analises', JSON.stringify(analyses));
+  };
   
   return {
     saveAtendimentos,
     getAtendimentos,
     saveTarotAnalyses,
     getTarotAnalyses,
+    getAllTarotAnalyses,
+    saveAllTarotAnalyses
   };
 };
 

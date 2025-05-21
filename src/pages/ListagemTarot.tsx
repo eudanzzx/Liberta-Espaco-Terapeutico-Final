@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Users, Activity, FileText, Pencil, Trash2, ArrowLeft, BellRing, AlertTriangle, Check, X } from "lucide-react";
+import { CalendarDays, Users, Activity, FileText, Pencil, Trash2, ArrowLeft, BellRing, AlertTriangle, Check, X, BarChart } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   AlertDialog,
@@ -284,6 +284,13 @@ const ListagemTarot = () => {
               onClick={() => navigate('/')}
             >
               <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
+            </Button>
+            <Button 
+              variant="outline"
+              className="border-[#0EA5E9] text-[#0EA5E9] hover:bg-blue-50"
+              onClick={() => navigate('/relatorios-frequencial')}
+            >
+              <BarChart className="h-4 w-4 mr-2" /> Relatórios
             </Button>
             <Button 
               className="bg-[#0EA5E9] hover:bg-[#0284C7] transition-all duration-300"
